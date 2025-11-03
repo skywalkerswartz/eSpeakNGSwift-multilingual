@@ -1,6 +1,6 @@
 # eSpeakNGSwift
 
-A Swift wrapper for the eSpeakNG speech synthesizer amd grapheme-to-phoneme (G2P) library for converting English text to phonetic representations suitable for text-to-speech (TTS) engines.
+A Swift wrapper for the eSpeakNG speech synthesizer and grapheme-to-phoneme (G2P) library for converting English text to phonetic representations suitable for text-to-speech (TTS) engines.
 
 ## Supported Platforms
 
