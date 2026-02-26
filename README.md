@@ -1,6 +1,18 @@
-# eSpeakNGSwift
+# eSpeakNGSwift — Multilingual Fork
 
-A Swift wrapper for the eSpeakNG speech synthesizer and grapheme-to-phoneme (G2P) library for converting English text to phonetic representations suitable for text-to-speech (TTS) engines.
+> **This is a fork of [mlalma/eSpeakNGSwift](https://github.com/mlalma/eSpeakNGSwift) that extends language support beyond English.** See [What's Different in This Fork](#whats-different-in-this-fork) below. It is intended for use with [skywalkerswartz/kokoro-ios-multilingual](https://github.com/skywalkerswartz/kokoro-ios-multilingual).
+
+A Swift wrapper for the eSpeakNG speech synthesizer and grapheme-to-phoneme (G2P) library for converting text to phonetic representations suitable for text-to-speech (TTS) engines.
+
+## What's Different in This Fork
+
+The upstream library exposes only English (US and GB) from the `Language` enum, even though the bundled eSpeak NG framework contains data for many more languages.
+
+### Changes Made
+
+- **`Language` enum** — Extended with seven new cases: `.es` (Spanish), `.frFR` (French), `.hi` (Hindi), `.it` (Italian), `.ptBR` (Brazilian Portuguese), `.zh` (Mandarin Chinese), `.ja` (Japanese).
+- **`postProcessPhonemes`** — Made language-aware. English continues to use the full E2M substitution table (which includes English-specific mappings like `e→A` and `r→ɹ`). Non-English languages use a safe cross-language subset that only cleans up diphthong/affricate tie-markers, then applies Kokoro's required nasal vowel normalization (`œ̃→B`, `ɔ̃→C`, `ɑ̃→D`, `ɛ̃→E`). Applying the full English E2M table to other languages would corrupt their phonemes.
+- **`init()` validation** — Relaxed from checking all `Language` enum cases at startup to only verifying English is present. Per-language availability is now checked lazily in `setLanguage()`, so adding new cases won't cause initialization to fail if a particular language's data is missing.
 
 ## Supported Platforms
 
@@ -21,7 +33,7 @@ dependencies: [
 ## Features
 
 - **Phonemization**: Convert text strings to phonetic representations
-- **Language Support**: Currently supports English (US and UK variants)
+- **Language Support**: English (US and GB), Spanish, French, Hindi, Italian, Brazilian Portuguese, Mandarin Chinese, Japanese
 - **Easy Integration**: Simple Swift API with comprehensive error handling
 - **Pre-built Framework**: Includes pre-compiled eSpeakNG framework for easy integration
 
@@ -48,13 +60,21 @@ do {
 
 ## Language Options
 
-Currently supported languages:
-
-- `.enUS` - English (United States)
-- `.enGB` - English (Great Britain)
+| Case | Language |
+|---|---|
+| `.enUS` | English (United States) |
+| `.enGB` | English (Great Britain) |
+| `.es` | Spanish |
+| `.frFR` | French |
+| `.hi` | Hindi |
+| `.it` | Italian |
+| `.ptBR` | Brazilian Portuguese |
+| `.zh` | Mandarin Chinese |
+| `.ja` | Japanese |
 
 ```swift
-try espeak.setLanguage(language: .enGB)
+try espeak.setLanguage(language: .frFR)
+let phonemes = try espeak.phonemize(text: "Bonjour le monde")
 ```
 
 ## License
