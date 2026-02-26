@@ -14,6 +14,8 @@ The upstream library exposes only English (US and GB) from the `Language` enum, 
 - **`postProcessPhonemes`** — Made language-aware. English continues to use the full E2M substitution table (which includes English-specific mappings like `e→A` and `r→ɹ`). Non-English languages use a safe cross-language subset that only cleans up diphthong/affricate tie-markers, then applies Kokoro's required nasal vowel normalization (`œ̃→B`, `ɔ̃→C`, `ɑ̃→D`, `ɛ̃→E`). Applying the full English E2M table to other languages would corrupt their phonemes.
 - **`init()` validation** — Relaxed from checking all `Language` enum cases at startup to only verifying English is present. Per-language availability is now checked lazily in `setLanguage()`, so adding new cases won't cause initialization to fail if a particular language's data is missing.
 
+**Note on French:** The raw value is `"fr-fr"` not `"fr"`. The bundled xcframework registers French as `"fr-fr"` in its internal voice list (`espeak_ListVoices`). Using `"fr"` causes `languageNotFound` at runtime; `"fr-fr"` is the correct key. This was verified empirically by enumerating the framework's language map. Per-language availability is now checked lazily in `setLanguage()`, so adding new cases won't cause initialization to fail if a particular language's data is missing.
+
 ## Supported Platforms
 
 - iOS 18.0+
@@ -65,7 +67,7 @@ do {
 | `.enUS` | English (United States) |
 | `.enGB` | English (Great Britain) |
 | `.es` | Spanish |
-| `.frFR` | French |
+| `.frFR` | French (`fr-fr`) |
 | `.hi` | Hindi |
 | `.it` | Italian |
 | `.ptBR` | Brazilian Portuguese |
