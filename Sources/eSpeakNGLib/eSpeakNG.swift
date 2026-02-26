@@ -63,10 +63,10 @@ public final class eSpeakNG {
         index += 1
       }
 
-      try Language.allCases.forEach {
-        if $0.rawValue.count > 0, !languageList.contains($0.rawValue) {
-          throw ESpeakNGEngineError.languageNotFound
-        }
+      // Validate that at minimum English is available (sanity check on the data bundle).
+      // Individual language availability is checked lazily in setLanguage().
+      if !languageList.contains(Language.enUS.rawValue) {
+        throw ESpeakNGEngineError.languageNotFound
       }
     } else {
       throw ESpeakNGEngineError.dataBundleNotFound
@@ -130,43 +130,56 @@ public final class eSpeakNG {
   // Post processes manually phonemes before returning them
   private func postProcessPhonemes(_ phonemes: String) -> String {
     var result = phonemes.trimmingCharacters(in: .whitespacesAndNewlines)
-    for (old, new) in Constants.E2M {
-      result = result.replacingOccurrences(of: old, with: new)
-    }
 
     result = result.replacingOccurrences(of: "(\\S)\u{0329}", with: "ᵊ$1", options: .regularExpression)
     result = result.replacingOccurrences(of: "\u{0329}", with: "")
 
-    // Non-English language post-processing (matches Kokoro Python's EspeakG2P)
     switch language {
     case .es, .frFR, .hi, .it, .ptBR, .zh, .ja:
+      // Non-English: apply only the safe cross-language substitutions (diphthong/affricate
+      // tie-marker cleanup), then nasal vowel normalization. Do NOT apply English-specific
+      // mappings like e->A or r->ɹ which would corrupt these phonemes.
+      for (old, new) in Constants.E2M_MULTI {
+        result = result.replacingOccurrences(of: old, with: new)
+      }
       // Map nasal vowels to Kokoro's single-character representations
-      result = result.replacingOccurrences(of: "œ̃", with: "B")
-      result = result.replacingOccurrences(of: "ɔ̃", with: "C")
-      result = result.replacingOccurrences(of: "ɑ̃", with: "D")
-      result = result.replacingOccurrences(of: "ɛ̃", with: "E")
-      // Remove dental diacritic (U+032A)
+      result = result.replacingOccurrences(of: "œ\u{0303}", with: "B")  // œ̃
+      result = result.replacingOccurrences(of: "ɔ\u{0303}", with: "C")  // ɔ̃
+      result = result.replacingOccurrences(of: "ɑ\u{0303}", with: "D")  // ɑ̃
+      result = result.replacingOccurrences(of: "ɛ\u{0303}", with: "E")  // ɛ̃
+      // Remove dental diacritic (U+032A) and tie bar (U+0361)
       result = result.replacingOccurrences(of: "\u{032A}", with: "")
-      // Remove tie bar (U+0361)
       result = result.replacingOccurrences(of: "\u{0361}", with: "")
-      // Remove contextual hyphens
-      result = result.replacingOccurrences(of: "(?<=[a-zɑ-ɿ])-(?=[a-zɑ-ɿ])", with: "",
+      // Remove contextual hyphens between phoneme characters
+      result = result.replacingOccurrences(of: "(?<=\\S)-(?=\\S)", with: "",
                                            options: .regularExpression)
+      // Strip any remaining combining tilde (U+0303) not consumed by nasal vowel mapping
+      result = result.replacingOccurrences(of: "\u{0303}", with: "")
+      result = result.replacingOccurrences(of: "^", with: "")
     case .enGB:
+      for (old, new) in Constants.E2M {
+        result = result.replacingOccurrences(of: old, with: new)
+      }
       result = result.replacingOccurrences(of: "e^ə", with: "ɛː")
       result = result.replacingOccurrences(of: "iə", with: "ɪə")
       result = result.replacingOccurrences(of: "ə^ʊ", with: "Q")
+      result = result.replacingOccurrences(of: "o", with: "ɔ")
+      result = result.replacingOccurrences(of: "^", with: "")
     default:
-      // enUS
+      // enUS (and .none)
+      for (old, new) in Constants.E2M {
+        result = result.replacingOccurrences(of: old, with: new)
+      }
       result = result.replacingOccurrences(of: "o^ʊ", with: "O")
       result = result.replacingOccurrences(of: "ɜːɹ", with: "ɜɹ")
       result = result.replacingOccurrences(of: "ɜː", with: "ɜɹ")
       result = result.replacingOccurrences(of: "ɪə", with: "iə")
       result = result.replacingOccurrences(of: "ː", with: "")
+      result = result.replacingOccurrences(of: "o", with: "ɔ")
+      result = result.replacingOccurrences(of: "^", with: "")
     }
 
-    result = result.replacingOccurrences(of: "o", with: "ɔ")
-    return result.replacingOccurrences(of: "^", with: "")
+    return result
   }
 
   // Find the data bundle that is inside the framework
@@ -181,7 +194,10 @@ public final class eSpeakNG {
 
   private enum Constants {
     static let successAudioSampleRate = 22050
-    
+
+    // Full English substitution table: converts eSpeak NG's English-quirk phoneme notation
+    // to Kokoro's expected IPA format. Contains English-specific mappings (e->A, r->ɹ, etc.)
+    // that must NOT be applied to non-English languages.
     static let E2M: [(String, String)] = [
       ("ʔˌn\u{0329}", "tn"), ("ʔn\u{0329}", "tn"), ("ʔn", "tn"), ("ʔ", "t"),
       ("a^ɪ", "I"), ("a^ʊ", "W"),
@@ -197,6 +213,19 @@ public final class eSpeakNG {
       ("ɐ", "ə"),
       ("ɬ", "l"),
       ("\u{0303}", ""),
+    ].sorted(by: { $0.0.count > $1.0.count })
+
+    // Safe cross-language substitutions: only the tie-marker diphthong/affricate cleanups
+    // that are valid IPA notation across all languages. Does NOT include English-specific
+    // mappings like e->A, r->ɹ, x->k, ç->k that would corrupt non-English phonemes.
+    static let E2M_MULTI: [(String, String)] = [
+      ("a^ɪ", "I"), ("a^ʊ", "W"),
+      ("d^ʒ", "ʤ"),
+      ("e^ɪ", "A"),
+      ("t^ʃ", "ʧ"),
+      ("ɔ^ɪ", "Y"),
+      ("ə^l", "ᵊl"),
+      ("ʲo", "jo"), ("ʲə", "jə"), ("ʲ", ""),
     ].sorted(by: { $0.0.count > $1.0.count })
   }
 }
