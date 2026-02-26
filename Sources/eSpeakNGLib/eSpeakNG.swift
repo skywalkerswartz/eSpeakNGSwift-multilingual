@@ -23,6 +23,13 @@ public final class eSpeakNG {
     case none = ""
     case enUS = "en-us"
     case enGB = "en-gb"
+    case es = "es"        // Spanish
+    case frFR = "fr"      // French
+    case hi = "hi"        // Hindi
+    case it = "it"        // Italian
+    case ptBR = "pt-br"   // Brazilian Portuguese
+    case zh = "cmn"       // Mandarin Chinese (eSpeak NG uses "cmn")
+    case ja = "ja"        // Japanese
   }
 
   // After constructing the wrapper, call setLanguage() before phonemizing any text
@@ -121,7 +128,6 @@ public final class eSpeakNG {
   }
 
   // Post processes manually phonemes before returning them
-  // NOTE: This is currently only for English, handling other langauges requires different kind of postproccessing
   private func postProcessPhonemes(_ phonemes: String) -> String {
     var result = phonemes.trimmingCharacters(in: .whitespacesAndNewlines)
     for (old, new) in Constants.E2M {
@@ -131,11 +137,27 @@ public final class eSpeakNG {
     result = result.replacingOccurrences(of: "(\\S)\u{0329}", with: "ᵊ$1", options: .regularExpression)
     result = result.replacingOccurrences(of: "\u{0329}", with: "")
 
-    if language == .enGB {
+    // Non-English language post-processing (matches Kokoro Python's EspeakG2P)
+    switch language {
+    case .es, .frFR, .hi, .it, .ptBR, .zh, .ja:
+      // Map nasal vowels to Kokoro's single-character representations
+      result = result.replacingOccurrences(of: "œ̃", with: "B")
+      result = result.replacingOccurrences(of: "ɔ̃", with: "C")
+      result = result.replacingOccurrences(of: "ɑ̃", with: "D")
+      result = result.replacingOccurrences(of: "ɛ̃", with: "E")
+      // Remove dental diacritic (U+032A)
+      result = result.replacingOccurrences(of: "\u{032A}", with: "")
+      // Remove tie bar (U+0361)
+      result = result.replacingOccurrences(of: "\u{0361}", with: "")
+      // Remove contextual hyphens
+      result = result.replacingOccurrences(of: "(?<=[a-zɑ-ɿ])-(?=[a-zɑ-ɿ])", with: "",
+                                           options: .regularExpression)
+    case .enGB:
       result = result.replacingOccurrences(of: "e^ə", with: "ɛː")
       result = result.replacingOccurrences(of: "iə", with: "ɪə")
       result = result.replacingOccurrences(of: "ə^ʊ", with: "Q")
-    } else {
+    default:
+      // enUS
       result = result.replacingOccurrences(of: "o^ʊ", with: "O")
       result = result.replacingOccurrences(of: "ɜːɹ", with: "ɜɹ")
       result = result.replacingOccurrences(of: "ɜː", with: "ɜɹ")
@@ -143,7 +165,6 @@ public final class eSpeakNG {
       result = result.replacingOccurrences(of: "ː", with: "")
     }
 
-    // For espeak < 1.52
     result = result.replacingOccurrences(of: "o", with: "ɔ")
     return result.replacingOccurrences(of: "^", with: "")
   }
