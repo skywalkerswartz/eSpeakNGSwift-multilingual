@@ -24,7 +24,7 @@ public final class eSpeakNG {
     case enUS = "en-us"
     case enGB = "en-gb"
     case es = "es"        // Spanish
-    case frFR = "fr"      // French
+    case frFR = "fr-fr"   // French
     case hi = "hi"        // Hindi
     case it = "it"        // Italian
     case ptBR = "pt-br"   // Brazilian Portuguese
