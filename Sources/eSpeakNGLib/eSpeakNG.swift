@@ -131,6 +131,14 @@ public final class eSpeakNG {
   private func postProcessPhonemes(_ phonemes: String) -> String {
     var result = phonemes.trimmingCharacters(in: .whitespacesAndNewlines)
 
+    // Strip language-change annotations that eSpeak NG injects into the phoneme stream
+    // when it encounters text in a different script (e.g. "(in Japanese)", "(in Mandarin Chinese)").
+    // These appear as the first token for CJK languages and get passed through to Kokoro,
+    // which would otherwise speak them as English words.
+    result = result.replacingOccurrences(of: "\\(in [^)]+\\)", with: "",
+                                         options: .regularExpression)
+    result = result.trimmingCharacters(in: .whitespaces)
+
     result = result.replacingOccurrences(of: "(\\S)\u{0329}", with: "ᵊ$1", options: .regularExpression)
     result = result.replacingOccurrences(of: "\u{0329}", with: "")
 
