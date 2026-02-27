@@ -131,18 +131,21 @@ public final class eSpeakNG {
   private func postProcessPhonemes(_ phonemes: String) -> String {
     var result = phonemes.trimmingCharacters(in: .whitespacesAndNewlines)
 
-    // Strip language-change annotations that eSpeak NG injects into the phoneme stream.
-    // These appear as "(Japanese)", "(Mandarin Chinese)", "(in Japanese)" etc. at the
-    // start of the output when switching to a CJK script. Without this stripping they
-    // pass through to Kokoro, which speaks them as English words before the actual speech.
-    // The pattern matches ASCII-only parentheticals (language names are ASCII; legitimate
-    // IPA optional-sound notation uses Unicode letters like ŋ, ɹ that won't match [A-Za-z]).
-    result = result.replacingOccurrences(of: "\\([A-Za-z][a-zA-Z ]+\\)", with: "",
+    // Strip language-change annotations that eSpeak NG injects into the phoneme stream:
+    // "(Japanese)", "(Mandarin Chinese)", "(in Japanese)", "(en-US)", "(fr-fr)", etc.
+    // Without this, they pass through to Kokoro and are spoken as English words.
+    // Pattern matches ASCII-only parentheticals; IPA optional-sound notation uses
+    // Unicode letters (ŋ, ɹ, …) that won't match [A-Za-z].
+    result = result.replacingOccurrences(of: "\\([A-Za-z][a-zA-Z -]+\\)", with: "",
                                          options: .regularExpression)
     result = result.trimmingCharacters(in: .whitespaces)
     #if DEBUG
-    if language == .ja || language == .zh {
-      print("[eSpeakNG] post-strip phonemes for '\(language)': '\(result.prefix(120))'")
+    switch language {
+    case .ja, .zh, .frFR, .es, .hi, .it, .ptBR, .enGB:
+      let snippet = String(result.prefix(80))
+      let codePoints = snippet.unicodeScalars.map { "U+\(String(format: "%04X", $0.value))" }.joined(separator: " ")
+      print("[eSpeakNG] phonemes (\(language.rawValue)): '\(snippet)' | \(codePoints)")
+    default: break
     }
     #endif
 
@@ -157,11 +160,19 @@ public final class eSpeakNG {
       for (old, new) in Constants.E2M_MULTI {
         result = result.replacingOccurrences(of: old, with: new)
       }
-      // Map nasal vowels to Kokoro's single-character representations
-      result = result.replacingOccurrences(of: "œ\u{0303}", with: "B")  // œ̃
-      result = result.replacingOccurrences(of: "ɔ\u{0303}", with: "C")  // ɔ̃
-      result = result.replacingOccurrences(of: "ɑ\u{0303}", with: "D")  // ɑ̃
-      result = result.replacingOccurrences(of: "ɛ\u{0303}", with: "E")  // ɛ̃
+      // Map nasal vowels to Kokoro's single-character representations.
+      // eSpeak NG may output IPA chars + combining tilde (U+0303), or precomposed
+      // Unicode chars, or ASCII base letters + combining tilde — cover all variants.
+      result = result.replacingOccurrences(of: "œ\u{0303}", with: "B")   // œ̃ (IPA decomposed)
+      result = result.replacingOccurrences(of: "ɔ\u{0303}", with: "C")   // ɔ̃ (IPA decomposed)
+      result = result.replacingOccurrences(of: "o\u{0303}", with: "C")   // o~ (ASCII base)
+      result = result.replacingOccurrences(of: "\u{00F5}", with: "C")    // õ  (precomposed)
+      result = result.replacingOccurrences(of: "ɑ\u{0303}", with: "D")   // ɑ̃ (IPA decomposed)
+      result = result.replacingOccurrences(of: "a\u{0303}", with: "D")   // a~ (ASCII base)
+      result = result.replacingOccurrences(of: "\u{00E3}", with: "D")    // ã  (precomposed)
+      result = result.replacingOccurrences(of: "ɛ\u{0303}", with: "E")   // ɛ̃ (IPA decomposed)
+      result = result.replacingOccurrences(of: "e\u{0303}", with: "E")   // e~ (ASCII base)
+      result = result.replacingOccurrences(of: "\u{1EBD}", with: "E")    // ẽ  (precomposed)
       // Remove dental diacritic (U+032A) and tie bar (U+0361)
       result = result.replacingOccurrences(of: "\u{032A}", with: "")
       result = result.replacingOccurrences(of: "\u{0361}", with: "")
