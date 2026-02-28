@@ -155,32 +155,25 @@ public final class eSpeakNG {
     switch language {
     case .es, .frFR, .hi, .it, .ptBR, .zh, .ja:
       // Non-English: apply only the safe cross-language substitutions (diphthong/affricate
-      // tie-marker cleanup), then nasal vowel normalization. Do NOT apply English-specific
-      // mappings like e->A or r->ɹ which would corrupt these phonemes.
+      // tie-marker cleanup). Do NOT apply English-specific mappings like e->A or r->ɹ
+      // which would corrupt non-English phonemes.
+      //
+      // Normalise to NFD first so any precomposed variants (e.g. ã U+00E3, õ U+00F5)
+      // are decomposed to base char + U+0303 combining tilde. The Kokoro tokenizer
+      // iterates over Unicode scalar values, so nasal vowels are correctly split into
+      // two tokens: base vowel (e.g. ɛ→86, ɔ→76, ɑ→69, œ→120) + tilde (̃→17).
+      // Do NOT map nasal vowels to B/C/D/E — those uppercase letters are not in the
+      // Kokoro vocab and would be silently dropped by the tokenizer.
+      result = result.decomposedStringWithCanonicalMapping  // NFD
       for (old, new) in Constants.E2M_MULTI {
         result = result.replacingOccurrences(of: old, with: new)
       }
-      // Map nasal vowels to Kokoro's single-character representations.
-      // eSpeak NG may output IPA chars + combining tilde (U+0303), or precomposed
-      // Unicode chars, or ASCII base letters + combining tilde — cover all variants.
-      result = result.replacingOccurrences(of: "œ\u{0303}", with: "B")   // œ̃ (IPA decomposed)
-      result = result.replacingOccurrences(of: "ɔ\u{0303}", with: "C")   // ɔ̃ (IPA decomposed)
-      result = result.replacingOccurrences(of: "o\u{0303}", with: "C")   // o~ (ASCII base)
-      result = result.replacingOccurrences(of: "\u{00F5}", with: "C")    // õ  (precomposed)
-      result = result.replacingOccurrences(of: "ɑ\u{0303}", with: "D")   // ɑ̃ (IPA decomposed)
-      result = result.replacingOccurrences(of: "a\u{0303}", with: "D")   // a~ (ASCII base)
-      result = result.replacingOccurrences(of: "\u{00E3}", with: "D")    // ã  (precomposed)
-      result = result.replacingOccurrences(of: "ɛ\u{0303}", with: "E")   // ɛ̃ (IPA decomposed)
-      result = result.replacingOccurrences(of: "e\u{0303}", with: "E")   // e~ (ASCII base)
-      result = result.replacingOccurrences(of: "\u{1EBD}", with: "E")    // ẽ  (precomposed)
       // Remove dental diacritic (U+032A) and tie bar (U+0361)
       result = result.replacingOccurrences(of: "\u{032A}", with: "")
       result = result.replacingOccurrences(of: "\u{0361}", with: "")
       // Remove contextual hyphens between phoneme characters
       result = result.replacingOccurrences(of: "(?<=\\S)-(?=\\S)", with: "",
                                            options: .regularExpression)
-      // Strip any remaining combining tilde (U+0303) not consumed by nasal vowel mapping
-      result = result.replacingOccurrences(of: "\u{0303}", with: "")
       result = result.replacingOccurrences(of: "^", with: "")
     case .enGB:
       for (old, new) in Constants.E2M {
