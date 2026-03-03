@@ -152,6 +152,14 @@ public final class eSpeakNG {
     result = result.replacingOccurrences(of: "(\\S)\u{0329}", with: "ᵊ$1", options: .regularExpression)
     result = result.replacingOccurrences(of: "\u{0329}", with: "")
 
+    #if DEBUG
+    if language == .enUS {
+      let snippet = String(result.prefix(120))
+      let codePoints = snippet.unicodeScalars.map { "U+\(String(format: "%04X", $0.value))" }.joined(separator: " ")
+      print("[eSpeakNG] RAW enUS: '\(snippet)' | \(codePoints)")
+    }
+    #endif
+
     switch language {
     case .es, .frFR, .hi, .it, .ptBR, .zh, .ja:
       // Non-English: apply only the safe cross-language substitutions (diphthong/affricate
@@ -196,6 +204,11 @@ public final class eSpeakNG {
       result = result.replacingOccurrences(of: "ː", with: "")
       result = result.replacingOccurrences(of: "o", with: "ɔ")
       result = result.replacingOccurrences(of: "^", with: "")
+      #if DEBUG
+      let snippet = String(result.prefix(120))
+      let codePoints = snippet.unicodeScalars.map { "U+\(String(format: "%04X", $0.value))" }.joined(separator: " ")
+      print("[eSpeakNG] POST enUS: '\(snippet)' | \(codePoints)")
+      #endif
     }
 
     return result
