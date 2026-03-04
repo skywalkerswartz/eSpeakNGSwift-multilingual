@@ -1,0 +1,5 @@
+---
+triple:          'x86_64-apple-darwin'
+binary-path:     '/Users/lukeswartz/code/eSpeakNGSwift-multilingual/Frameworks/ESpeakNG.xcframework/macos-arm64_x86_64/ESpeakNG.framework/Versions/A/ESpeakNG'
+relocations:     []
+...
